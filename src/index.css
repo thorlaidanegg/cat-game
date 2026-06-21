@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #ffd9e8;
+  -webkit-tap-highlight-color: transparent;
+  font-family: "Quicksand", "Segoe UI", system-ui, sans-serif;
+}
+
+canvas {
+  touch-action: none;
+}
+
+/* gentle scrollbar for any scrollable popups */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 179, 209, 0.7);
+  border-radius: 999px;
+}
