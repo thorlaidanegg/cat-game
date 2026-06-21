@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { areaCenter, seeded } from "./layout";
 import { Flower, Tree, SakuraTree, Mushroom, Bush } from "./props/Nature";
-import { Bench, Swing, Lantern, Bridge, Slide } from "./props/Structures";
+import { Bench, Swing, Lantern, Bridge } from "./props/Structures";
+import PlaygroundSlides from "./props/PlaygroundSlides";
 import Lake from "./props/Lake";
 import Note from "./props/Note";
 import HeartTree from "./props/HeartTree";
@@ -70,9 +71,9 @@ export default function World() {
       {meadowTrees.map((p, i) => (
         <Tree key={`mt${i}`} position={p} scale={0.9 + (i % 3) * 0.2} />
       ))}
-      <Swing position={[meadow.x + 8, 0, meadow.z + 8]} rotation={-0.4} />
-      <Slide position={[meadow.x - 9, 0, meadow.z - 2]} rotation={0.6} />
-      <Bench position={[meadow.x - 6, 0, meadow.z + 6]} rotation={-0.6} />
+      <Swing position={[meadow.x + 9, 0, meadow.z + 9]} rotation={-0.4} />
+      <PlaygroundSlides position={[meadow.x - 12, 0, meadow.z - 4]} />
+      <Bench position={[meadow.x - 6, 0, meadow.z + 7]} rotation={-0.6} />
       <Butterflies count={12} center={[meadow.x, 0, meadow.z]} spread={26} />
       <HeartBubbles count={10} />
 

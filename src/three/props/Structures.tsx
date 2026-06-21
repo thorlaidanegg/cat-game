@@ -121,9 +121,12 @@ export function Swing({ position, rotation = 0 }: { position: [number, number, n
 
     if (seat.current) seat.current.rotation.x = r.angle;
 
-    // publish world-space seat position for the Cat to ride
+    // publish world-space seat position for the Cat to ride.
+    // The seat hangs at local (0,-ROPE,0) and the pivot rotates by `angle`
+    // about X, so the seat lands at z = -ROPE*sin(angle) (note the sign — this
+    // is what keeps the cat perfectly in phase with the visible seat).
     const yLocal = TOP_Y - ROPE * Math.cos(r.angle);
-    const zLocal = ROPE * Math.sin(r.angle);
+    const zLocal = -ROPE * Math.sin(r.angle);
     r.seat.set(
       position[0] + zLocal * Math.sin(rotation),
       position[1] + yLocal,

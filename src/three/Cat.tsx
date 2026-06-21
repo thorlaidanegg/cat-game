@@ -8,6 +8,8 @@ import { audio } from "../audio/AudioManager";
 import { swingRuntime } from "./swingRuntime";
 import { catRuntime } from "./catRuntime";
 import { carRuntime } from "./carRuntime";
+import { slideRuntime } from "./slideRuntime";
+import CatModel from "./CatModel";
 
 let raceReportT = 0; // throttle store writes for the race clock
 
@@ -73,6 +75,12 @@ export default function Cat() {
     const inp = sample();
     const phase = useGame.getState().phase;
 
+    // publish the player position so the companion cat can follow (1-frame lag
+    // is fine for a follower and keeps this branch-agnostic)
+    catRuntime.pos.copy(s.pos);
+    catRuntime.heading = s.heading;
+    catRuntime.moving = s.speed > 1;
+
     // ---- teleport request (from the games panel) --------------------------
     if (catRuntime.teleport) {
       s.pos.copy(catRuntime.teleport);
@@ -86,10 +94,12 @@ export default function Cat() {
     // with the arc; movement is disabled. Camera still orbits via drag.
     if (phase === "playing" && useGame.getState().riding === "swing") {
       const seat = swingRuntime.seat;
-      s.pos.lerp(seat, 0.5);
+      // glue (no lerp) so the cat is locked to the seat — perfectly in phase
+      s.pos.copy(seat);
       if (root.current) {
-        root.current.position.set(seat.x, seat.y + 0.2, seat.z);
-        root.current.rotation.set(swingRuntime.angle * 0.7, swingRuntime.yaw, 0);
+        root.current.position.set(seat.x, seat.y + 0.35, seat.z);
+        // yaw to face the swing, then tilt about the *local* X with the arc
+        root.current.rotation.set(swingRuntime.angle, swingRuntime.yaw, 0, "YXZ");
       }
       // a little life: tail flick + happy blink so the cat isn't frozen
       if (tail.current) tail.current.rotation.z = Math.sin(stThree.clock.elapsedTime * 6) * 0.4;
@@ -110,6 +120,37 @@ export default function Cat() {
       camera.position.lerp(scratch.desiredCam, 1 - Math.pow(0.004, delta));
       scratch.lookAt.copy(s.pos).add(new Vector3(0, 1.2, 0));
       camera.lookAt(scratch.lookAt);
+      return;
+    }
+
+    // ---- sliding down a playground slide ---------------------------------
+    if (phase === "playing" && useGame.getState().riding === "slide") {
+      const sr = slideRuntime;
+      sr.t += delta / sr.dur;
+      const u = Math.min(1, sr.t);
+      const e = u * u * (3 - 2 * u); // smoothstep for a smooth whoosh
+      sr.pos.copy(sr.from).lerp(sr.to, e);
+      const bounce = Math.sin(u * Math.PI) * 0.12;
+      s.pos.set(sr.pos.x, 0, sr.pos.z);
+      const heading = Math.atan2(sr.to.x - sr.from.x, sr.to.z - sr.from.z);
+      if (root.current) {
+        root.current.position.set(sr.pos.x, sr.pos.y + 0.35 + bounce, sr.pos.z);
+        root.current.rotation.set(0.5, heading, 0, "YXZ"); // lean back, face downhill
+      }
+      if (tail.current) tail.current.rotation.z = Math.sin(stThree.clock.elapsedTime * 11) * 0.5;
+
+      const d = 12;
+      scratch.offset.set(
+        Math.sin(inp.yaw) * Math.cos(inp.pitch) * d,
+        Math.sin(inp.pitch) * d + 3,
+        Math.cos(inp.yaw) * Math.cos(inp.pitch) * d
+      );
+      scratch.desiredCam.copy(s.pos).add(scratch.offset);
+      camera.position.lerp(scratch.desiredCam, 1 - Math.pow(0.02, delta));
+      scratch.lookAt.set(sr.pos.x, sr.pos.y + 0.6, sr.pos.z);
+      camera.lookAt(scratch.lookAt);
+
+      if (u >= 1) useGame.getState().endRide();
       return;
     }
 
@@ -392,133 +433,13 @@ export default function Cat() {
     }
   });
 
-  // soft, cute pastel cat materials
-  const fur = "#fdeede"; // creamy white
-  const furSoft = "#f7ddc4"; // gentle peach shading
-  const belly = "#fffaf3";
-  const pink = "#ff9ec2";
-  const cheek = "#ffb3c8";
-
   return (
     <group ref={root} position={[0, 0, 6]} scale={1.15}>
       <group ref={rig}>
-        {/* chunky rounded body */}
-        <mesh castShadow position={[0, 0.55, 0]} scale={[1, 0.92, 1.2]}>
-          <sphereGeometry args={[0.6, 28, 24]} />
-          <meshStandardMaterial color={fur} roughness={0.9} />
-        </mesh>
-        {/* soft belly patch */}
-        <mesh position={[0, 0.4, 0.35]} scale={[0.78, 0.82, 0.7]}>
-          <sphereGeometry args={[0.5, 24, 20]} />
-          <meshStandardMaterial color={belly} roughness={0.95} />
-        </mesh>
-
-        {/* fat fluffy tail (two segments) */}
-        <group ref={tail} position={[0, 0.6, -0.62]}>
-          <mesh castShadow position={[0, 0.25, -0.2]} rotation={[-0.5, 0, 0]}>
-            <capsuleGeometry args={[0.16, 0.5, 8, 12]} />
-            <meshStandardMaterial color={furSoft} roughness={0.9} />
-          </mesh>
-          <mesh castShadow position={[0, 0.6, -0.28]}>
-            <sphereGeometry args={[0.19, 16, 14]} />
-            <meshStandardMaterial color={fur} roughness={0.9} />
-          </mesh>
-        </group>
-
-        {/* stubby little legs */}
-        {[
-          [-0.28, 0.34],
-          [0.28, 0.34],
-          [-0.28, -0.3],
-          [0.28, -0.3],
-        ].map(([x, z], i) => (
-          <mesh key={i} ref={(m) => (legs.current[i] = m)} castShadow position={[x, 0.18, z]}>
-            <capsuleGeometry args={[0.16, 0.12, 6, 10]} />
-            <meshStandardMaterial color={furSoft} roughness={0.9} />
-          </mesh>
-        ))}
-
-        {/* BIG round head (chibi proportions) */}
-        <group ref={head} position={[0, 1.05, 0.5]}>
-          <mesh castShadow>
-            <sphereGeometry args={[0.58, 28, 24]} />
-            <meshStandardMaterial color={fur} roughness={0.9} />
-          </mesh>
-
-          {/* big rounded ears with pink inner */}
-          <mesh ref={earL} position={[-0.34, 0.46, -0.02]} rotation={[0, 0, 0.35]}>
-            <coneGeometry args={[0.22, 0.4, 16]} />
-            <meshStandardMaterial color={fur} roughness={0.9} />
-          </mesh>
-          <mesh ref={earR} position={[0.34, 0.46, -0.02]} rotation={[0, 0, -0.35]}>
-            <coneGeometry args={[0.22, 0.4, 16]} />
-            <meshStandardMaterial color={fur} roughness={0.9} />
-          </mesh>
-          <mesh position={[-0.34, 0.44, 0.06]} rotation={[0, 0, 0.35]} scale={0.62}>
-            <coneGeometry args={[0.22, 0.4, 16]} />
-            <meshStandardMaterial color={pink} roughness={0.9} />
-          </mesh>
-          <mesh position={[0.34, 0.44, 0.06]} rotation={[0, 0, -0.35]} scale={0.62}>
-            <coneGeometry args={[0.22, 0.4, 16]} />
-            <meshStandardMaterial color={pink} roughness={0.9} />
-          </mesh>
-
-          {/* big sparkly eyes */}
-          {[-0.22, 0.22].map((x, i) => (
-            <group key={i} position={[x, 0.05, 0.46]}>
-              <mesh scale={[0.85, 1.15, 0.7]}>
-                <sphereGeometry args={[0.15, 20, 20]} />
-                <meshStandardMaterial color="#3a2b33" roughness={0.25} />
-              </mesh>
-              {/* two highlights for that lively, dewy look */}
-              <mesh position={[0.05, 0.06, 0.1]}>
-                <sphereGeometry args={[0.05, 10, 10]} />
-                <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
-              </mesh>
-              <mesh position={[-0.03, -0.04, 0.11]}>
-                <sphereGeometry args={[0.025, 8, 8]} />
-                <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
-              </mesh>
-              {/* eyelid that scales down from the top to blink */}
-              <mesh ref={i === 0 ? lidL : lidR} position={[0, 0.04, 0.05]} scale={[1, 0, 1]}>
-                <sphereGeometry args={[0.17, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-                <meshStandardMaterial color={fur} roughness={0.9} />
-              </mesh>
-            </group>
-          ))}
-
-          {/* rosy blush cheeks */}
-          {[-0.34, 0.34].map((x) => (
-            <mesh key={x} position={[x, -0.12, 0.4]} scale={[1, 0.7, 0.4]}>
-              <sphereGeometry args={[0.12, 14, 12]} />
-              <meshStandardMaterial color={cheek} roughness={0.9} transparent opacity={0.85} />
-            </mesh>
-          ))}
-
-          {/* tiny nose + smile */}
-          <mesh position={[0, -0.04, 0.57]}>
-            <sphereGeometry args={[0.045, 10, 10]} />
-            <meshStandardMaterial color={pink} roughness={0.7} />
-          </mesh>
-          <mesh position={[0, -0.14, 0.55]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.05, 0.012, 8, 16, Math.PI]} />
-            <meshStandardMaterial color="#a8788a" />
-          </mesh>
-
-          {/* whiskers — cylinders rotated to point sideways out of the cheeks */}
-          {[-1, 1].map((s) =>
-            [-0.05, 0.05].map((yy) => (
-              <mesh
-                key={`${s}-${yy}`}
-                position={[s * 0.52, yy - 0.04, 0.42]}
-                rotation={[0, 0, s * (Math.PI / 2) + yy]}
-              >
-                <cylinderGeometry args={[0.004, 0.004, 0.32, 4]} />
-                <meshStandardMaterial color="#e8d8cc" />
-              </mesh>
-            ))
-          )}
-        </group>
+        <CatModel
+          colors={{ fur: "#fdeede", furSoft: "#f7ddc4", belly: "#fffaf3", pink: "#ff9ec2", cheek: "#ffb3c8" }}
+          parts={{ head, tail, earL, earR, lidL, lidR, legs }}
+        />
       </group>
     </group>
   );

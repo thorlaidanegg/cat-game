@@ -5,6 +5,7 @@ import SkyDayNight from "./SkyDayNight";
 import Ground from "./Ground";
 import World from "./World";
 import Cat from "./Cat";
+import CompanionCat from "./CompanionCat";
 import Fireflies from "./particles/Fireflies";
 import Joystick from "../ui/Joystick";
 
@@ -28,6 +29,7 @@ export default function Experience() {
           <World />
           <Fireflies count={70} />
           <Cat />
+          <CompanionCat />
           <Preload all />
         </Suspense>
 

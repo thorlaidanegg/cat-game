@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { loveNotes } from "../data/messages";
+import { emoteRuntime, type EmoteType } from "../three/emoteRuntime";
 
 /**
  * Central game state. Kept deliberately small and serialisable so that every
@@ -44,7 +45,8 @@ interface GameState {
 
   activeMessage: string | null; // currently displayed message, or null
 
-  riding: "swing" | "car" | null; // active mini-game ride
+  riding: "swing" | "car" | "slide" | null; // active mini-game ride
+  emote: EmoteType | null; // active couple emote (kiss/cuddle/…)
   swingBest: number; // best swing height reached (cm-ish, for fun)
 
   // racing
@@ -68,6 +70,10 @@ interface GameState {
   mountSwing: () => void;
   dismountSwing: () => void;
   reportSwingHeight: (cm: number) => void;
+  startSlide: () => void;
+  endRide: () => void;
+  playEmote: (type: EmoteType) => void;
+  clearEmote: () => void;
   startRace: () => void;
   leaveRace: () => void;
   setRaceProgress: (lap: number, timeMs: number) => void;
@@ -90,6 +96,7 @@ export const useGame = create<GameState>((set, get) => ({
   notesRead: [],
   activeMessage: null,
   riding: null,
+  emote: null,
   swingBest: 0,
   raceLap: 0,
   raceTimeMs: 0,
@@ -121,6 +128,15 @@ export const useGame = create<GameState>((set, get) => ({
   mountSwing: () => set({ riding: "swing", objective: "Press SPACE to swing higher! ✨" }),
   dismountSwing: () =>
     set({ riding: null, objective: "Wander and explore the little world ❤️" }),
+  startSlide: () => set({ riding: "slide", objective: "Wheeee! 🛝" }),
+  endRide: () =>
+    set({ riding: null, objective: "Wander and explore the little world ❤️" }),
+  playEmote: (type) => {
+    if (get().riding) return; // not while mid-ride
+    emoteRuntime.begin(type);
+    set({ emote: type });
+  },
+  clearEmote: () => set({ emote: null }),
   reportSwingHeight: (cm) =>
     set((s) => (cm > s.swingBest ? { swingBest: Math.round(cm) } : {})),
 

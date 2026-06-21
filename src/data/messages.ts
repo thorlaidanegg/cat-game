@@ -60,6 +60,26 @@ export const loveNotes: string[] = [
   "You're proof that good things are real.",
 ];
 
+/** Lines the companion cat ("me") says when she pets/clicks it. */
+export const companionLines: string[] = [
+  "I'm right here with you. 🐾",
+  "Wherever you go, I'll follow. ❤️",
+  "Look at us — together, even here.",
+  "I made this whole place just to be near you.",
+  "Race you to the next flower? 🏎️",
+  "You found me! I was waiting. 💕",
+  "Hold my paw, let's explore.",
+  "Every adventure is better with you.",
+  "Purrr… this is my favorite spot — next to you.",
+  "Miss me? I never left your side.",
+  "Let's go on the swing together! 🌸",
+  "I'd cross this whole world for you, and then some.",
+];
+
+export function pickCompanionLine(): string {
+  return companionLines[Math.floor(Math.random() * companionLines.length)];
+}
+
 /** Special messages tied to specific objects in the world. */
 export const objectInteractions = {
   flower: [

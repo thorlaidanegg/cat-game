@@ -31,6 +31,12 @@ export default function GamesPanel() {
       action: () => g().mountSwing(),
     },
     {
+      icon: "🛝",
+      title: "Slides",
+      how: "Click a slide to whoosh down it",
+      action: () => catRuntime.goTo(meadow.x - 12, meadow.z + 3),
+    },
+    {
       icon: "🫧",
       title: "Bubble Pop",
       how: "Click floating hearts in the meadow",
