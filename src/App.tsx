@@ -10,6 +10,7 @@ import LoadingVeil from "./ui/LoadingVeil";
 import SwingUI from "./ui/SwingUI";
 import RaceUI from "./ui/RaceUI";
 import GamesPanel from "./ui/GamesPanel";
+import EmoteBar from "./ui/EmoteBar";
 
 export default function App() {
   const phase = useGame((s) => s.phase);
@@ -31,6 +32,7 @@ export default function App() {
       {phase === "playing" && <SwingUI />}
       {phase === "playing" && <RaceUI />}
       {phase === "playing" && <GamesPanel />}
+      {phase === "playing" && <EmoteBar />}
 
       {/* Love-note reader */}
       <NotePopup />

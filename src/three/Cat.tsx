@@ -9,6 +9,7 @@ import { swingRuntime } from "./swingRuntime";
 import { catRuntime } from "./catRuntime";
 import { carRuntime } from "./carRuntime";
 import { slideRuntime } from "./slideRuntime";
+import { emoteRuntime, companionRuntime } from "./emoteRuntime";
 import CatModel from "./CatModel";
 
 let raceReportT = 0; // throttle store writes for the race clock
@@ -261,6 +262,65 @@ export default function Cat() {
       return;
     }
 
+    // ---- couple emote (kiss / cuddle / nuzzle / dance) -------------------
+    const emote = useGame.getState().emote;
+    if (phase === "playing" && emote && !useGame.getState().riding) {
+      const er = emoteRuntime;
+      const p = Math.min(1, er.t / er.dur);
+      const pulse = Math.sin(p * Math.PI); // eases 0→1→0
+      const comp = companionRuntime.pos;
+      s.speed = 0;
+      const faceH = Math.atan2(comp.x - s.pos.x, comp.z - s.pos.z);
+
+      let y = 0;
+      let spin = 0;
+      if (emote === "dance") {
+        y = Math.abs(Math.sin(er.t * 7)) * 0.28;
+        spin = Math.sin(er.t * 6) * 0.18;
+      }
+      if (root.current) {
+        root.current.rotation.y = MathUtils.lerp(root.current.rotation.y, faceH + spin, 0.2);
+        root.current.position.set(s.pos.x, y, s.pos.z);
+      }
+      if (rig.current) {
+        rig.current.position.y = 0;
+        rig.current.scale.y = MathUtils.lerp(rig.current.scale.y, 1, 0.2);
+        rig.current.rotation.x = MathUtils.lerp(rig.current.rotation.x, emote === "kiss" ? pulse * 0.18 : 0, 0.25);
+        rig.current.rotation.z = MathUtils.lerp(
+          rig.current.rotation.z,
+          emote === "cuddle" ? pulse * 0.28 : emote === "dance" ? Math.sin(er.t * 6) * 0.22 : 0,
+          0.25
+        );
+      }
+      if (head.current) {
+        head.current.rotation.x = MathUtils.lerp(
+          head.current.rotation.x,
+          emote === "kiss" ? -pulse * 0.12 : emote === "nuzzle" ? -pulse * 0.1 : 0.05,
+          0.2
+        );
+        head.current.rotation.y = emote === "nuzzle" ? Math.sin(er.t * 11) * 0.28 : 0;
+        head.current.rotation.z = MathUtils.lerp(head.current.rotation.z, emote === "cuddle" ? pulse * 0.22 : 0, 0.2);
+      }
+      if (tail.current) tail.current.rotation.z = Math.sin(er.t * 9) * 0.45;
+      // gentle happy eyes; closed for the kiss
+      const lid = emote === "kiss" ? pulse : 0;
+      if (lidL.current) lidL.current.scale.y = MathUtils.lerp(lidL.current.scale.y, lid, 0.3);
+      if (lidR.current) lidR.current.scale.y = MathUtils.lerp(lidR.current.scale.y, lid, 0.3);
+
+      // camera orbit (companion advances the timer + clears the emote)
+      const d = 13;
+      scratch.offset.set(
+        Math.sin(inp.yaw) * Math.cos(inp.pitch) * d,
+        Math.sin(inp.pitch) * d + 3.5,
+        Math.cos(inp.yaw) * Math.cos(inp.pitch) * d
+      );
+      scratch.desiredCam.copy(s.pos).add(scratch.offset);
+      camera.position.lerp(scratch.desiredCam, 1 - Math.pow(0.01, delta));
+      scratch.lookAt.copy(s.pos).add(new Vector3(0, 1.2, 0));
+      camera.lookAt(scratch.lookAt);
+      return;
+    }
+
     // ---- 1. locomotion ----------------------------------------------------
     const wantMove = phase === "playing" && (inp.forward !== 0 || inp.strafe !== 0);
 
@@ -348,6 +408,7 @@ export default function Cat() {
         s.mood === "sleep" ? 0.15 : 0,
         0.08
       );
+      rig.current.rotation.z = MathUtils.lerp(rig.current.rotation.z, 0, 0.15); // clear emote lean
     }
 
     // tail: lazy sway, faster when moving, curls when sleeping
@@ -370,6 +431,7 @@ export default function Cat() {
         sitting ? -0.1 : 0.05,
         0.05
       );
+      head.current.rotation.y = MathUtils.lerp(head.current.rotation.y, 0, 0.15); // clear emote head-turn
     }
     // occasional ear twitch
     const twitch = Math.sin(performance.now() / 130) * (Math.random() > 0.997 ? 0.4 : 0);

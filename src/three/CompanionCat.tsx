@@ -4,6 +4,7 @@ import { Group, Mesh, MathUtils, Vector3 } from "three";
 import CatModel from "./CatModel";
 import { catRuntime } from "./catRuntime";
 import { carRuntime } from "./carRuntime";
+import { emoteRuntime, companionRuntime } from "./emoteRuntime";
 import { WORLD_RADIUS } from "./layout";
 import { useGame } from "../store/useGame";
 import { pickCompanionLine } from "../data/messages";
@@ -45,6 +46,60 @@ export default function CompanionCat() {
     const s = st.current;
     const riding = useGame.getState().riding;
     const player = catRuntime.pos;
+    companionRuntime.pos.copy(s.pos); // publish for the player cat to face
+
+    // ---- couple emote: glide up to her and play it together --------------
+    const emote = useGame.getState().emote;
+    if (emote && !riding) {
+      const er = emoteRuntime;
+      er.t += delta;
+      const p = Math.min(1, er.t / er.dur);
+      const pulse = Math.sin(p * Math.PI);
+
+      // settle the right distance away so the heads meet but never overlap.
+      // each chibi head reaches ~1.2 forward, so noses touch around ~2.3 apart.
+      const gap = emote === "dance" ? 2.6 : emote === "cuddle" ? 2.0 : 2.3;
+      tmp.dir.subVectors(s.pos, player);
+      tmp.dir.y = 0;
+      if (tmp.dir.lengthSq() < 0.01) tmp.dir.set(0.6, 0, 0.6);
+      tmp.dir.normalize();
+      tmp.desired.copy(player).addScaledVector(tmp.dir, gap);
+      s.pos.lerp(tmp.desired, 1 - Math.pow(0.0006, delta));
+      s.heading = Math.atan2(player.x - s.pos.x, player.z - s.pos.z);
+
+      let y = 0;
+      let spin = 0;
+      if (emote === "dance") {
+        y = Math.abs(Math.sin(er.t * 7 + 0.5)) * 0.28;
+        spin = Math.sin(er.t * 6 + 0.5) * 0.18;
+      }
+      if (root.current) {
+        root.current.position.set(s.pos.x, y, s.pos.z);
+        root.current.rotation.y = MathUtils.lerp(root.current.rotation.y, s.heading + spin, 0.25);
+      }
+      if (rig.current) {
+        rig.current.position.y = 0;
+        rig.current.rotation.x = MathUtils.lerp(rig.current.rotation.x, emote === "kiss" ? pulse * 0.18 : 0, 0.25);
+        rig.current.rotation.z = MathUtils.lerp(
+          rig.current.rotation.z,
+          emote === "cuddle" ? -pulse * 0.28 : emote === "dance" ? Math.sin(er.t * 6 + 0.5) * 0.22 : 0,
+          0.25
+        );
+      }
+      if (head.current) {
+        // tip the head up/in a touch toward her, not a full plunge
+        head.current.rotation.x = emote === "kiss" ? -pulse * 0.12 : emote === "nuzzle" ? -pulse * 0.1 : 0;
+        head.current.rotation.y = emote === "nuzzle" ? Math.sin(er.t * 11 + Math.PI) * 0.28 : 0;
+        head.current.rotation.z = emote === "cuddle" ? -pulse * 0.22 : 0;
+      }
+      if (tail.current) tail.current.rotation.z = Math.sin(er.t * 9) * 0.5;
+      const lid = emote === "kiss" ? pulse : 0;
+      if (lidL.current) lidL.current.scale.y = MathUtils.lerp(lidL.current.scale.y, lid, 0.3);
+      if (lidR.current) lidR.current.scale.y = MathUtils.lerp(lidR.current.scale.y, lid, 0.3);
+
+      if (er.t >= er.dur) useGame.getState().clearEmote();
+      return;
+    }
 
     let targetY = 0;
     let snap = false; // ride modes place the cat directly
@@ -115,6 +170,8 @@ export default function CompanionCat() {
     if (rig.current) {
       const bob = Math.sin(s.walkPhase * 2) * 0.06 * stride + Math.sin(three.clock.elapsedTime * 1.4) * 0.02;
       rig.current.position.y = MathUtils.lerp(rig.current.position.y, bob, 0.15);
+      rig.current.rotation.x = MathUtils.lerp(rig.current.rotation.x, 0, 0.15); // clear emote pose
+      rig.current.rotation.z = MathUtils.lerp(rig.current.rotation.z, 0, 0.15);
     }
     // happy tail wag (faster when close / idle, like an excited pet)
     if (tail.current) {
@@ -125,6 +182,8 @@ export default function CompanionCat() {
     if (head.current) {
       const want = Math.atan2(player.x - s.pos.x, player.z - s.pos.z) - s.heading;
       head.current.rotation.y = MathUtils.lerp(head.current.rotation.y, MathUtils.clamp(want, -0.7, 0.7) * 0.5, 0.1);
+      head.current.rotation.x = MathUtils.lerp(head.current.rotation.x, 0, 0.15);
+      head.current.rotation.z = MathUtils.lerp(head.current.rotation.z, 0, 0.15);
     }
 
     // blinking

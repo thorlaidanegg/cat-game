@@ -7,6 +7,7 @@ import World from "./World";
 import Cat from "./Cat";
 import CompanionCat from "./CompanionCat";
 import Fireflies from "./particles/Fireflies";
+import EmoteHearts from "./particles/EmoteHearts";
 import Joystick from "../ui/Joystick";
 
 /**
@@ -30,6 +31,7 @@ export default function Experience() {
           <Fireflies count={70} />
           <Cat />
           <CompanionCat />
+          <EmoteHearts />
           <Preload all />
         </Suspense>
 
