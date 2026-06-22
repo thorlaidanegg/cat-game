@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Group, Mesh, MathUtils, Vector3 } from "three";
 import { useInput } from "./controls/useInput";
 import { areaAt, areaCenter, WORLD_RADIUS } from "./layout";
+import { floorAt } from "./platforms";
 import { useGame, RACE_LAPS } from "../store/useGame";
 import { audio } from "../audio/AudioManager";
 import { swingRuntime } from "./swingRuntime";
@@ -353,12 +354,20 @@ export default function Cat() {
       s.grounded = false;
       s.idleTime = 0;
     }
+
+    // what's under the cat (island, a playhouse floor, or a ramp)?
+    const floorY = floorAt(s.pos.x, s.pos.z, s.pos.y);
+    // step/walk up onto ledges & ramps while grounded
+    if (s.grounded && floorY > s.pos.y && floorY - s.pos.y <= 0.75) s.pos.y = floorY;
+
     s.vy -= 22 * delta;
     s.pos.y += s.vy * delta;
-    if (s.pos.y <= 0) {
-      s.pos.y = 0;
+    if (s.pos.y <= floorY) {
+      s.pos.y = floorY;
       s.vy = 0;
       s.grounded = true;
+    } else {
+      s.grounded = false;
     }
 
     // keep within the world
@@ -457,10 +466,15 @@ export default function Cat() {
     if (lidR.current) lidR.current.scale.y = MathUtils.lerp(lidR.current.scale.y, lid, 0.6);
 
     // ---- camera follow ----------------------------------------------------
-    const dist = 15; // pulled back for a calmer, more zoomed-out view
+    // duck the camera in close when she's inside the playhouse ground floor,
+    // otherwise the upper floor would hide her.
+    const indoors =
+      s.pos.y < 1.5 && s.pos.x > -5 && s.pos.x < 5 && s.pos.z > -12 && s.pos.z < -2;
+    const dist = indoors ? 7 : 15;
+    const hOff = indoors ? 1.4 : 4;
     scratch.offset.set(
       Math.sin(inp.yaw) * Math.cos(inp.pitch) * dist,
-      Math.sin(inp.pitch) * dist + 4,
+      Math.sin(inp.pitch) * dist + hOff,
       Math.cos(inp.yaw) * Math.cos(inp.pitch) * dist
     );
     scratch.desiredCam.copy(s.pos).add(scratch.offset);

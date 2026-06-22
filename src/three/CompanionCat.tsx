@@ -5,6 +5,7 @@ import CatModel from "./CatModel";
 import { catRuntime } from "./catRuntime";
 import { carRuntime } from "./carRuntime";
 import { emoteRuntime, companionRuntime } from "./emoteRuntime";
+import { floorAt } from "./platforms";
 import { WORLD_RADIUS } from "./layout";
 import { useGame } from "../store/useGame";
 import { pickCompanionLine } from "../data/messages";
@@ -29,6 +30,7 @@ export default function CompanionCat() {
 
   const st = useRef({
     pos: new Vector3(1.6, 0, 7.5),
+    y: 0,
     heading: 0,
     speed: 0,
     walkPhase: 0,
@@ -150,6 +152,13 @@ export default function CompanionCat() {
         s.pos.x = (s.pos.x / flat) * WORLD_RADIUS;
         s.pos.z = (s.pos.z / flat) * WORLD_RADIUS;
       }
+    }
+
+    // follow her onto the playhouse floors/ramps (unless snapped into the car)
+    if (!snap) {
+      const f = floorAt(s.pos.x, s.pos.z, s.y + 0.75);
+      s.y = MathUtils.lerp(s.y, f, 1 - Math.pow(0.0001, delta));
+      targetY = s.y;
     }
 
     // apply transform

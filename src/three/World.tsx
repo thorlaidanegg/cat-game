@@ -3,6 +3,7 @@ import { areaCenter, seeded } from "./layout";
 import { Flower, Tree, SakuraTree, Mushroom, Bush } from "./props/Nature";
 import { Bench, Swing, Lantern, Bridge } from "./props/Structures";
 import PlaygroundSlides from "./props/PlaygroundSlides";
+import House from "./props/House";
 import Lake from "./props/Lake";
 import Note from "./props/Note";
 import HeartTree from "./props/HeartTree";
@@ -37,15 +38,21 @@ export default function World() {
   const stargaze = areaCenter("stargaze");
   const heart = areaCenter("heart");
 
+  // keep decorations off the playhouse footprint (x[-6,6], z[-13,3])
+  const inHouse = (p: [number, number, number]) => p[0] > -6.5 && p[0] < 6.5 && p[2] > -13.5 && p[2] < 3.5;
+
   // deterministic decoration positions — kept sparse + spaced for a clean look
-  const meadowFlowers = useMemo(() => scatter(1, 30, meadow.x, meadow.z, 19), [meadow]);
-  const meadowTrees = useMemo(() => scatter(2, 5, meadow.x, meadow.z, 20), [meadow]);
+  const meadowFlowers = useMemo(
+    () => scatter(1, 34, meadow.x, meadow.z, 19).filter((p) => !inHouse(p)),
+    [meadow]
+  );
+  const meadowTrees = useMemo(() => scatter(2, 6, meadow.x, meadow.z, 20).filter((p) => !inHouse(p)), [meadow]);
   const sakuraTrees = useMemo(() => scatter(3, 7, sakura.x, sakura.z, 14), [sakura]);
   const mushrooms = useMemo(() => scatter(4, 7, sakura.x, sakura.z, 15), [sakura]);
   const lakeLanterns = useMemo(() => scatter(5, 4, lake.x, lake.z, 15), [lake]);
   const picnicFlowers = useMemo(() => scatter(6, 9, picnic.x, picnic.z, 13), [picnic]);
-  // bushes kept in the inner park so they never sit on the outer ring road
-  const bushes = useMemo(() => scatter(7, 16, 0, 0, 42), []);
+  // bushes kept in the inner park (off the ring road and the house)
+  const bushes = useMemo(() => scatter(7, 16, 0, 0, 42).filter((p) => !inHouse(p)), []);
 
   // 50 love notes spread mostly around the picnic + sprinkled everywhere
   const notes = useMemo(() => {
@@ -71,8 +78,10 @@ export default function World() {
       {meadowTrees.map((p, i) => (
         <Tree key={`mt${i}`} position={p} scale={0.9 + (i % 3) * 0.2} />
       ))}
-      <Swing position={[meadow.x + 9, 0, meadow.z + 9]} rotation={-0.4} />
-      <PlaygroundSlides position={[meadow.x - 12, 0, meadow.z - 4]} />
+      {/* the big playhouse you can walk into + climb */}
+      <House />
+      <Swing position={[meadow.x + 12, 0, meadow.z + 7]} rotation={-0.4} />
+      <PlaygroundSlides position={[meadow.x - 13, 0, meadow.z - 6]} />
       <Bench position={[meadow.x - 6, 0, meadow.z + 7]} rotation={-0.6} />
       <Butterflies count={12} center={[meadow.x, 0, meadow.z]} spread={26} />
       <HeartBubbles count={10} />
