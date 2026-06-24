@@ -9,6 +9,7 @@ import { audio } from "../audio/AudioManager";
 import { swingRuntime } from "./swingRuntime";
 import { catRuntime } from "./catRuntime";
 import { carRuntime } from "./carRuntime";
+import { roadFrac, advanceLaps, tryRampLaunch, stepJump } from "./raceLogic";
 import { slideRuntime } from "./slideRuntime";
 import { emoteRuntime, companionRuntime } from "./emoteRuntime";
 import CatModel from "./CatModel";
@@ -180,43 +181,11 @@ export default function Cat() {
       c.pos.z += fz * c.speed * delta;
       c.wheelSpin += c.speed * delta * 2.2;
 
-      // --- keep the car on the road by clamping to the centerline curve ---
-      const S = c.samples;
-      let frac = c.prevFrac;
-      if (S.length > 2) {
-        // find nearest centerline sample (coarse but cheap)
-        let best = 0;
-        let bestD = Infinity;
-        for (let i = 0; i < S.length; i++) {
-          const ddx = c.pos.x - S[i].x;
-          const ddz = c.pos.z - S[i].z;
-          const d = ddx * ddx + ddz * ddz;
-          if (d < bestD) {
-            bestD = d;
-            best = i;
-          }
-        }
-        const p = S[best];
-        const nxt = S[(best + 1) % S.length];
-        // road tangent + left-normal
-        let tx = nxt.x - p.x;
-        let tz = nxt.z - p.z;
-        const tl = Math.hypot(tx, tz) || 1;
-        tx /= tl;
-        tz /= tl;
-        const nx = tz;
-        const nz = -tx;
-        // lateral offset of the car from the centerline
-        const lat = (c.pos.x - p.x) * nx + (c.pos.z - p.z) * nz;
-        const maxLat = c.half - 0.6;
-        if (Math.abs(lat) > maxLat) {
-          const pull = lat - Math.sign(lat) * maxLat;
-          c.pos.x -= nx * pull; // slide back onto the road (keeps momentum → smooth)
-          c.pos.z -= nz * pull;
-          c.speed *= 0.985; // a touch of scrub, no harsh bounce
-        }
-        frac = best / S.length;
-      }
+      // keep the car on the road + lap fraction (shared helper)
+      const frac = roadFrac(c);
+      // jump ramps + gravity
+      tryRampLaunch(c);
+      stepJump(c, delta);
 
       // --- lap progress on the closed curve ---
       if (Math.abs(c.speed) > 1.5 && !c.started) {
@@ -226,39 +195,34 @@ export default function Cat() {
         c.progress = 0;
       }
       if (c.started) {
-        let d = frac - c.prevFrac;
-        if (d > 0.5) d -= 1; // wrap
-        if (d < -0.5) d += 1;
-        c.progress += d;
-        c.prevFrac = frac;
+        const lapsDone = advanceLaps(c, frac);
         const g2 = useGame.getState();
-        const lapsDone = Math.max(0, Math.floor(c.progress));
         const elapsed = performance.now() - c.startMs;
         if (!g2.raceFinished) {
-          if (lapsDone >= RACE_LAPS) g2.finishRace(elapsed);
+          if (lapsDone >= RACE_LAPS) g2.finishRace(elapsed, "win");
           else {
             raceReportT += delta;
             if (raceReportT > 0.1) {
               raceReportT = 0;
-              g2.setRaceProgress(lapsDone, elapsed);
+              g2.setRaceProgress(lapsDone, elapsed, c.progress);
             }
           }
         }
       }
 
-      // glue the cat into the driver seat (lean into turns a little)
+      // glue the cat into the driver seat (lean into turns + ride the jumps)
       s.pos.set(c.pos.x, 0, c.pos.z);
       if (root.current) {
-        root.current.position.set(c.pos.x, 0.62, c.pos.z);
-        root.current.rotation.set(0, c.heading, -c.steer * 0.12);
+        root.current.position.set(c.pos.x, 0.62 + c.y, c.pos.z);
+        root.current.rotation.set(-c.vy * 0.02, c.heading, -c.steer * 0.12, "YXZ");
       }
 
       // smooth chase camera behind the car
       const camDist = 16;
-      const camH = 8;
+      const camH = 8 + c.y * 0.5;
       scratch.desiredCam.set(c.pos.x - fx * camDist, camH, c.pos.z - fz * camDist);
       camera.position.lerp(scratch.desiredCam, 1 - Math.pow(0.015, delta));
-      scratch.lookAt.set(c.pos.x + fx * 6, 1.4, c.pos.z + fz * 6);
+      scratch.lookAt.set(c.pos.x + fx * 6, 1.4 + c.y, c.pos.z + fz * 6);
       camera.lookAt(scratch.lookAt);
       return;
     }

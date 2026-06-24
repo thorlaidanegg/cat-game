@@ -1,22 +1,26 @@
 import { useMemo } from "react";
 import { BufferGeometry, CatmullRomCurve3, Float32BufferAttribute, Vector3 } from "three";
 import { carRuntime } from "../carRuntime";
+import { rampPads } from "../raceLogic";
 
 // A big ring road (WORLD coordinates) that loops all the way around the park,
 // sweeping past every area so you can drive everywhere and hop off near a game.
 const WAYPOINTS: [number, number][] = [
-  [48, 9], // east — by the picnic
-  [30, 58], // north-east sweep
-  [-42, 52], // north-west — by the heart garden
-  [-58, -13], // west — by the lake
-  [-30, -52], // south-west
-  [9, -58], // south — by the sakura garden
-  [56, -50], // south-east — by stargazing hill
-  [64, -10], // east straight
+  [72, 14],
+  [45, 87],
+  [-63, 78],
+  [-87, -20],
+  [-45, -78],
+  [14, -87],
+  [84, -75],
+  [96, -15],
 ];
 
-const N = 420; // centerline samples (more = smoother on a big loop)
-const HALF = 8; // road half-width — nice and wide
+const N = 520; // centerline samples (more = smoother on a big loop)
+const HALF = 10; // road half-width — nice and wide
+
+// fractions (0..1) around the lap where jump ramps sit
+const RAMP_FRACS = [0.13, 0.41, 0.68, 0.88];
 
 /** Builds a flat ribbon BufferGeometry of given half-width along the curve. */
 function ribbon(points: Vector3[], tangents: Vector3[], half: number, y: number) {
@@ -76,6 +80,18 @@ export default function RaceTrack({ position }: { position: [number, number, num
   carRuntime.startHeading = startHeading;
   if (carRuntime.pos.lengthSq() === 0) carRuntime.pos.copy(carRuntime.start);
 
+  // jump ramps placed around the lap (world coords + facing along the track)
+  const ramps = useMemo(() => {
+    rampPads.length = 0;
+    return RAMP_FRACS.map((f) => {
+      const i = Math.floor(f * N) % N;
+      const p = points[i].clone().add(offset);
+      const t = tangents[i];
+      rampPads.push({ x: p.x, z: p.z });
+      return { x: p.x, z: p.z, yaw: Math.atan2(t.x, t.z) };
+    });
+  }, [points, tangents, offset]);
+
   // checkered start line (boxes laid across the road at sample 0)
   const startLine = useMemo(() => {
     const cells = 8;
@@ -105,6 +121,24 @@ export default function RaceTrack({ position }: { position: [number, number, num
           </mesh>
         ))}
       </group>
+
+      {/* jump ramps — drive over them fast to catch air! */}
+      {ramps.map((r, i) => (
+        <group key={`ramp${i}`} position={[r.x, 0, r.z]} rotation={[0, r.yaw, 0]}>
+          {/* wedge: a tilted slab rising toward the driving direction */}
+          <mesh position={[0, 0.5, 0.4]} rotation={[-0.5, 0, 0]} castShadow receiveShadow>
+            <boxGeometry args={[HALF * 1.6, 0.25, 3.2]} />
+            <meshStandardMaterial color="#ffd36e" roughness={0.6} />
+          </mesh>
+          {/* candy stripes on the lip */}
+          {[-1, 1].map((sx) => (
+            <mesh key={sx} position={[sx * HALF * 0.7, 0.78, 1.1]} rotation={[-0.5, 0, 0]}>
+              <boxGeometry args={[1.2, 0.28, 3.2]} />
+              <meshStandardMaterial color={sx > 0 ? "#ff7aa8" : "#7fd7ff"} roughness={0.6} />
+            </mesh>
+          ))}
+        </group>
+      ))}
 
       {/* a couple of cheerful start banners */}
       {[-1, 1].map((s) => (

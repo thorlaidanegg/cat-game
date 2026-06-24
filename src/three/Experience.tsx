@@ -28,7 +28,7 @@ export default function Experience() {
           <SkyDayNight />
           <Ground />
           <World />
-          <Fireflies count={70} />
+          <Fireflies count={110} area={150} />
           <Cat />
           <CompanionCat />
           <EmoteHearts />

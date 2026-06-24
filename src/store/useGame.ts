@@ -54,6 +54,10 @@ interface GameState {
   raceTimeMs: number; // live elapsed time
   raceFinished: boolean;
   raceBestMs: number | null;
+  raceAiLap: number; // AI completed laps
+  racePlayerProg: number; // live fractional progress (laps)
+  raceAiProg: number;
+  racePlace: "win" | "lose" | null; // result when finished
 
   // actions
   start: () => void;
@@ -76,8 +80,9 @@ interface GameState {
   clearEmote: () => void;
   startRace: () => void;
   leaveRace: () => void;
-  setRaceProgress: (lap: number, timeMs: number) => void;
-  finishRace: (timeMs: number) => void;
+  setRaceProgress: (lap: number, timeMs: number, prog: number) => void;
+  setAiProgress: (lap: number, prog: number) => void;
+  finishRace: (timeMs: number, place: "win" | "lose") => void;
   triggerEnding: () => void;
 }
 
@@ -102,6 +107,10 @@ export const useGame = create<GameState>((set, get) => ({
   raceTimeMs: 0,
   raceFinished: false,
   raceBestMs: null,
+  raceAiLap: 0,
+  racePlayerProg: 0,
+  raceAiProg: 0,
+  racePlace: null,
 
   start: () => set({ phase: "playing" }),
   setArea: (area) => set({ area }),
@@ -146,18 +155,29 @@ export const useGame = create<GameState>((set, get) => ({
       raceLap: 0,
       raceTimeMs: 0,
       raceFinished: false,
-      objective: `Drive around the park! W go · A/D steer · hop off (E) near any game · ${RACE_LAPS} laps to race`,
+      raceAiLap: 0,
+      racePlayerProg: 0,
+      raceAiProg: 0,
+      racePlace: null,
+      objective: `Race the blue kitty! ${RACE_LAPS} laps · W go · A/D steer · hit the ramps! 🏁`,
     }),
   leaveRace: () =>
     set({ riding: null, objective: "Wander and explore the little world ❤️" }),
-  setRaceProgress: (lap, timeMs) =>
-    set((s) => (s.raceFinished ? {} : { raceLap: lap, raceTimeMs: timeMs })),
-  finishRace: (timeMs) =>
-    set((s) => ({
-      raceFinished: true,
-      raceTimeMs: timeMs,
-      raceBestMs: s.raceBestMs == null ? timeMs : Math.min(s.raceBestMs, timeMs),
-    })),
+  setRaceProgress: (lap, timeMs, prog) =>
+    set((s) => (s.raceFinished ? {} : { raceLap: lap, raceTimeMs: timeMs, racePlayerProg: prog })),
+  setAiProgress: (lap, prog) =>
+    set((s) => (s.raceFinished ? {} : { raceAiLap: lap, raceAiProg: prog })),
+  finishRace: (timeMs, place) =>
+    set((s) => {
+      if (s.raceFinished) return {};
+      return {
+        raceFinished: true,
+        raceTimeMs: timeMs,
+        racePlace: place,
+        raceBestMs:
+          place === "win" && (s.raceBestMs == null || timeMs < s.raceBestMs) ? timeMs : s.raceBestMs,
+      };
+    }),
 
   triggerEnding: () => {
     if (get().phase !== "ending") set({ phase: "ending", area: "heart" });

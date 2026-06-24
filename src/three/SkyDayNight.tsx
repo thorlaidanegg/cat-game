@@ -72,10 +72,10 @@ export default function SkyDayNight() {
         shadow-mapSize={[1024, 1024]}
         shadow-camera-near={1}
         shadow-camera-far={260}
-        shadow-camera-left={-90}
-        shadow-camera-right={90}
-        shadow-camera-top={90}
-        shadow-camera-bottom={-90}
+        shadow-camera-left={-130}
+        shadow-camera-right={130}
+        shadow-camera-top={130}
+        shadow-camera-bottom={-130}
         shadow-bias={-0.0004}
       />
       {/* a soft warm fill from the opposite side keeps the cat's face lit */}

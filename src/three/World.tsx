@@ -8,6 +8,7 @@ import Note from "./props/Note";
 import HeartTree from "./props/HeartTree";
 import RaceTrack from "./props/RaceTrack";
 import Car from "./props/Car";
+import { aiCar } from "./carRuntime";
 import Butterflies from "./particles/Butterflies";
 import Petals from "./particles/Petals";
 import HeartBubbles from "./particles/HeartBubbles";
@@ -124,7 +125,8 @@ export default function World() {
       {/* ---------------- Ring Road around the whole park ---------------- */}
       <RaceTrack position={[0, 0, 0]} />
       <Car />
-      <Fireworks position={[48, 0, 9]} />
+      <Car rt={aiCar} color="#7aa2ff" interactive={false} />
+      <Fireworks position={[72, 0, 13.5]} />
 
       {/* ---------------- Heart Garden (ending) ---------------- */}
       <HeartTree position={[heart.x, 0, heart.z]} />

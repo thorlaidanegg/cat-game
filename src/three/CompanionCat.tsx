@@ -3,11 +3,12 @@ import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, MathUtils, Vector3 } from "three";
 import CatModel from "./CatModel";
 import { catRuntime } from "./catRuntime";
-import { carRuntime } from "./carRuntime";
+import { carRuntime, aiCar } from "./carRuntime";
+import { roadFrac, advanceLaps, tryRampLaunch, stepJump, nearestIndex } from "./raceLogic";
 import { emoteRuntime, companionRuntime } from "./emoteRuntime";
 import { floorAt } from "./platforms";
 import { WORLD_RADIUS } from "./layout";
-import { useGame } from "../store/useGame";
+import { useGame, RACE_LAPS } from "../store/useGame";
 import { pickCompanionLine } from "../data/messages";
 
 /**
@@ -103,18 +104,67 @@ export default function CompanionCat() {
       return;
     }
 
+    // ---- AI driver: race the player around the track in its OWN car -------
+    if (riding === "car") {
+      const ai = aiCar;
+      const S = carRuntime.samples;
+      if (S.length > 3) {
+        // steer toward a look-ahead point on the centerline
+        const idx = nearestIndex(ai.pos.x, ai.pos.z);
+        const look = S[(idx + 16) % S.length];
+        const desired = Math.atan2(look.x - ai.pos.x, look.z - ai.pos.z);
+        let dh = Math.atan2(Math.sin(desired - ai.heading), Math.cos(desired - ai.heading));
+        ai.steer = MathUtils.clamp(dh * 1.5, -1, 1);
+        ai.heading += dh * Math.min(1, delta * 3.2);
+
+        // rubber-band a touch so it's a fun, close race (never runs away/off)
+        const g = useGame.getState();
+        const behind = g.racePlayerProg - ai.progress;
+        const AIMAX = 24 + MathUtils.clamp(behind * 4, -3, 4);
+        ai.speed = MathUtils.lerp(ai.speed, AIMAX, 1 - Math.pow(0.04, delta));
+
+        ai.pos.x += Math.sin(ai.heading) * ai.speed * delta;
+        ai.pos.z += Math.cos(ai.heading) * ai.speed * delta;
+        ai.wheelSpin += ai.speed * delta * 2.2;
+
+        const frac = roadFrac(ai);
+        tryRampLaunch(ai);
+        stepJump(ai, delta);
+
+        if (!ai.started && ai.speed > 1.5) {
+          ai.started = true;
+          ai.prevFrac = frac;
+          ai.progress = 0;
+          ai.startMs = performance.now();
+        }
+        if (ai.started) {
+          const laps = advanceLaps(ai, frac);
+          g.setAiProgress(laps, ai.progress);
+          if (laps >= RACE_LAPS) g.finishRace(performance.now() - (carRuntime.startMs || performance.now()), "lose");
+        }
+      }
+
+      // seat the companion in its own (blue) car
+      s.pos.copy(ai.pos);
+      s.heading = ai.heading;
+      companionRuntime.pos.copy(s.pos);
+      if (root.current) {
+        root.current.position.set(ai.pos.x, 0.62 + ai.y, ai.pos.z);
+        root.current.rotation.set(-ai.vy * 0.02, ai.heading, -ai.steer * 0.12, "YXZ");
+      }
+      if (tail.current) tail.current.rotation.z = Math.sin(three.clock.elapsedTime * 6) * 0.3;
+      if (rig.current) {
+        rig.current.position.y = 0;
+        rig.current.rotation.x = 0;
+        rig.current.rotation.z = 0;
+      }
+      return;
+    }
+
     let targetY = 0;
     let snap = false; // ride modes place the cat directly
 
-    if (riding === "car") {
-      // sit on the back of the car, facing forward — riding along together
-      const h = carRuntime.heading;
-      tmp.forward.set(Math.sin(h), 0, Math.cos(h));
-      tmp.desired.copy(carRuntime.pos).addScaledVector(tmp.forward, -1.05);
-      targetY = 0.55;
-      snap = true;
-      s.heading = h;
-    } else if (riding === "swing" || riding === "slide") {
+    if (riding === "swing" || riding === "slide") {
       // stand on the ground near the activity and watch (don't chase into the air)
       tmp.desired.set(player.x + 2.2, 0, player.z + 1.2);
       // face the player

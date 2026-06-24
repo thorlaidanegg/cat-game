@@ -2,66 +2,78 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Group } from "three";
 import { useGame } from "../../store/useGame";
-import { carRuntime } from "../carRuntime";
+import { carRuntime, aiCar, type CarRT } from "../carRuntime";
+import { resetRace } from "../raceLogic";
 
 /**
- * The cute open-top race car. It only *renders* — all driving physics live in
- * the Cat controller (which also seats the cat on top). Parked at the start line
- * until clicked. Wheels: an outer group steers (front only), an inner hub spins,
- * and the cylinder is oriented so its axle points left-right.
+ * The cute open-top race car. It only *renders* — physics live elsewhere
+ * (player car in the Cat controller, AI car in CompanionCat). Pass a runtime +
+ * colour to render either car. The player car (interactive) starts the race on
+ * click.
  */
-export default function Car() {
+export default function Car({
+  rt = carRuntime,
+  color = "#ff6f91",
+  interactive = true,
+}: {
+  rt?: CarRT;
+  color?: string;
+  interactive?: boolean;
+}) {
   const g = useRef<Group>(null);
-  const steerGroups = useRef<(Group | null)[]>([]); // front wheels (yaw)
-  const hubs = useRef<(Group | null)[]>([]); // all wheels (roll)
+  const steerGroups = useRef<(Group | null)[]>([]);
+  const hubs = useRef<(Group | null)[]>([]);
 
   useFrame(() => {
-    const c = carRuntime;
     if (g.current) {
-      g.current.position.set(c.pos.x, 0.42, c.pos.z);
-      g.current.rotation.set(0, c.heading, -c.steer * 0.05);
+      g.current.position.set(rt.pos.x, 0.42 + rt.y, rt.pos.z);
+      g.current.rotation.set(-rt.vy * 0.015, rt.heading, -rt.steer * 0.05, "YXZ");
     }
-    steerGroups.current.forEach((s) => s && (s.rotation.y = c.steer * 0.5));
-    hubs.current.forEach((h) => h && (h.rotation.x = c.wheelSpin));
+    steerGroups.current.forEach((s) => s && (s.rotation.y = rt.steer * 0.5));
+    hubs.current.forEach((h) => h && (h.rotation.x = rt.wheelSpin));
   });
 
   const startRace = () => {
     if (useGame.getState().riding) return;
-    carRuntime.reset();
+    resetRace();
     useGame.getState().startRace();
   };
 
   const wheels: [number, number, boolean][] = [
-    [-0.5, 0.62, true], // front-left
-    [0.5, 0.62, true], // front-right
-    [-0.5, -0.62, false], // rear-left
-    [0.5, -0.62, false], // rear-right
+    [-0.5, 0.62, true],
+    [0.5, 0.62, true],
+    [-0.5, -0.62, false],
+    [0.5, -0.62, false],
   ];
 
   return (
     <group
       ref={g}
       scale={1.35}
-      onClick={(e) => {
-        e.stopPropagation();
-        startRace();
-      }}
-      onPointerOver={() => (document.body.style.cursor = "pointer")}
-      onPointerOut={() => (document.body.style.cursor = "auto")}
+      onClick={
+        interactive
+          ? (e) => {
+              e.stopPropagation();
+              startRace();
+            }
+          : undefined
+      }
+      onPointerOver={interactive ? () => (document.body.style.cursor = "pointer") : undefined}
+      onPointerOut={interactive ? () => (document.body.style.cursor = "auto") : undefined}
     >
       {/* chassis */}
       <mesh castShadow position={[0, 0.18, 0]}>
         <boxGeometry args={[0.92, 0.28, 1.7]} />
-        <meshStandardMaterial color="#ff6f91" roughness={0.45} metalness={0.2} />
+        <meshStandardMaterial color={color} roughness={0.45} metalness={0.2} />
       </mesh>
       <mesh castShadow position={[0, 0.18, 0.85]}>
         <sphereGeometry args={[0.46, 16, 12]} />
-        <meshStandardMaterial color="#ff6f91" roughness={0.45} metalness={0.2} />
+        <meshStandardMaterial color={color} roughness={0.45} metalness={0.2} />
       </mesh>
       {/* cockpit */}
       <mesh position={[0, 0.34, -0.15]}>
         <boxGeometry args={[0.62, 0.2, 0.7]} />
-        <meshStandardMaterial color="#ffd9e8" roughness={0.6} />
+        <meshStandardMaterial color="#ffffff" roughness={0.6} />
       </mesh>
       {/* spoiler */}
       <mesh castShadow position={[0, 0.52, -0.85]}>
@@ -82,17 +94,12 @@ export default function Car() {
 
       {/* wheels */}
       {wheels.map(([x, z, front], i) => (
-        <group
-          key={i}
-          position={[x, 0, z]}
-          ref={(el) => front && (steerGroups.current[i] = el)}
-        >
+        <group key={i} position={[x, 0, z]} ref={(el) => front && (steerGroups.current[i] = el)}>
           <group ref={(el) => (hubs.current[i] = el)}>
             <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
               <cylinderGeometry args={[0.27, 0.27, 0.2, 16]} />
               <meshStandardMaterial color="#4a3b44" roughness={0.8} />
             </mesh>
-            {/* hubcap so the spin is visible */}
             <mesh position={[x > 0 ? 0.11 : -0.11, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
               <cylinderGeometry args={[0.12, 0.12, 0.02, 12]} />
               <meshStandardMaterial color="#ffd9e8" />

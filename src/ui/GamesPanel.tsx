@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "../store/useGame";
 import { areaCenter } from "../three/layout";
 import { catRuntime } from "../three/catRuntime";
-import { carRuntime } from "../three/carRuntime";
+import { resetRace } from "../three/raceLogic";
 
 interface GameEntry {
   icon: string;
@@ -68,10 +68,10 @@ export default function GamesPanel() {
     },
     {
       icon: "🏎️",
-      title: "Drive / Race",
-      how: "Cruise the ring road · 3 laps to race",
+      title: "Race the blue kitty",
+      how: "3 laps · hit ramps to jump · beat the AI!",
       action: () => {
-        carRuntime.reset();
+        resetRace();
         g().startRace();
       },
     },

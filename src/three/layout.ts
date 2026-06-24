@@ -9,16 +9,16 @@ export interface AreaDef {
 }
 
 export const AREAS: AreaDef[] = [
-  { id: "meadow", center: new Vector3(0, 0, 0), radius: 22 },
-  { id: "lake", center: new Vector3(-38, 0, -8), radius: 18 },
-  { id: "picnic", center: new Vector3(34, 0, 6), radius: 16 },
-  { id: "sakura", center: new Vector3(8, 0, -40), radius: 18 },
-  { id: "stargaze", center: new Vector3(40, 0, -38), radius: 16 },
-  { id: "race", center: new Vector3(52, 0, 30), radius: 32 },
-  { id: "heart", center: new Vector3(-30, 0, 40), radius: 16 },
+  { id: "meadow", center: new Vector3(0, 0, 0), radius: 30 },
+  { id: "lake", center: new Vector3(-57, 0, -12), radius: 24 },
+  { id: "picnic", center: new Vector3(51, 0, 9), radius: 22 },
+  { id: "sakura", center: new Vector3(12, 0, -60), radius: 24 },
+  { id: "stargaze", center: new Vector3(60, 0, -57), radius: 22 },
+  { id: "race", center: new Vector3(78, 0, 45), radius: 36 },
+  { id: "heart", center: new Vector3(-45, 0, 60), radius: 22 },
 ];
 
-export const WORLD_RADIUS = 100;
+export const WORLD_RADIUS = 150;
 
 /** Returns the area whose centre is nearest to a given world position. */
 export function areaAt(pos: Vector3): AreaId {

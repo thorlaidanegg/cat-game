@@ -1,24 +1,23 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame, RACE_LAPS } from "../store/useGame";
-import { carRuntime } from "../three/carRuntime";
+import { resetRace } from "../three/raceLogic";
 
 const fmt = (ms: number) => `${(ms / 1000).toFixed(2)}s`;
 
-/** Race overlay: live lap + clock, plus a finish banner with the best time. */
+/** Race overlay: live lap + clock + you-vs-AI standings, and a result banner. */
 export default function RaceUI() {
   const racing = useGame((s) => s.riding === "car");
-  const { raceLap, raceTimeMs, raceFinished, raceBestMs } = useGame();
+  const { raceLap, raceTimeMs, raceFinished, raceBestMs, racePlayerProg, raceAiProg, racePlace } = useGame();
   const leaveRace = useGame((s) => s.leaveRace);
   const startRace = useGame((s) => s.startRace);
 
-  // E to hop out, R to restart
   useEffect(() => {
     if (!racing) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "KeyE") leaveRace();
       if (e.code === "KeyR") {
-        carRuntime.reset();
+        resetRace();
         startRace();
       }
     };
@@ -27,6 +26,9 @@ export default function RaceUI() {
   }, [racing, leaveRace, startRace]);
 
   if (!racing) return null;
+
+  // live position: 1st if you're further along the lap than the blue kitty
+  const playerFirst = racePlayerProg >= raceAiProg;
 
   return (
     <>
@@ -37,11 +39,14 @@ export default function RaceUI() {
             Lap {Math.min(raceLap + (raceFinished ? 0 : 1), RACE_LAPS)}/{RACE_LAPS}
           </span>
           <span>⏱ {fmt(raceTimeMs)}</span>
-          {raceBestMs != null && <span className="text-cocoa/60">best {fmt(raceBestMs)}</span>}
+          <span className={`rounded-full px-2 py-0.5 text-sm font-bold ${playerFirst ? "bg-mint/80" : "bg-petal/40"}`}>
+            {playerFirst ? "P1 🐱" : "P2 🐱"}
+          </span>
+          <span className="text-cocoa/60">vs 🐱‍ blue</span>
         </div>
       </div>
 
-      {/* big easy hop-out button (+ keyboard hint) */}
+      {/* hop-out */}
       <div data-ui className="absolute bottom-16 left-1/2 z-30 -translate-x-1/2 text-center">
         {!raceFinished && (
           <button
@@ -51,10 +56,10 @@ export default function RaceUI() {
             🐾 hop out of the car (E)
           </button>
         )}
-        <div className="pointer-events-none mt-1 text-xs text-cocoa/60">R = restart race</div>
+        <div className="pointer-events-none mt-1 text-xs text-cocoa/60">R = restart race · ramps = jump!</div>
       </div>
 
-      {/* finish banner + fireworks (3D fireworks fire in the scene) */}
+      {/* result banner */}
       <AnimatePresence>
         {raceFinished && (
           <motion.div
@@ -70,18 +75,16 @@ export default function RaceUI() {
               transition={{ type: "spring", stiffness: 140, damping: 12 }}
               className="rounded-3xl border border-white/60 bg-cream/90 p-8 text-center shadow-soft backdrop-blur"
             >
-              <div className="text-5xl">🎉🏁🎉</div>
-              <h2 className="mt-3 font-hand text-3xl font-bold text-cocoa">You did it!</h2>
+              <div className="text-5xl">{racePlace === "win" ? "🏆🎉" : "🩵🏁"}</div>
+              <h2 className="mt-3 font-hand text-3xl font-bold text-cocoa">
+                {racePlace === "win" ? "You won! 🥇" : "Blue kitty won — rematch?"}
+              </h2>
               <p className="mt-1 font-hand text-xl text-cocoa">time: {fmt(raceTimeMs)}</p>
-              {raceBestMs != null && (
-                <p className="text-sm text-cocoa/60">
-                  {raceTimeMs <= raceBestMs ? "✨ new best! ✨" : `best: ${fmt(raceBestMs)}`}
-                </p>
-              )}
+              {raceBestMs != null && <p className="text-sm text-cocoa/60">best win: {fmt(raceBestMs)}</p>}
               <div className="mt-5 flex justify-center gap-3">
                 <button
                   onClick={() => {
-                    carRuntime.reset();
+                    resetRace();
                     startRace();
                   }}
                   className="pointer-events-auto rounded-full bg-petal px-5 py-2 text-sm font-bold text-white shadow-soft transition hover:bg-petal/90"
