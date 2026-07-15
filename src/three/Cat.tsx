@@ -47,7 +47,7 @@ export default function Cat() {
 
   // mutable locomotion state kept out of React
   const state = useRef({
-    pos: new Vector3(0, 0, 6),
+    pos: new Vector3(0, 0, 20),
     heading: Math.PI,
     speed: 0,
     walkPhase: 0,
@@ -430,12 +430,21 @@ export default function Cat() {
     if (lidR.current) lidR.current.scale.y = MathUtils.lerp(lidR.current.scale.y, lid, 0.6);
 
     // ---- camera follow ----------------------------------------------------
-    // duck the camera in close when she's inside the playhouse ground floor,
-    // otherwise the upper floor would hide her.
+    // smoothly swing the camera to sit behind the way she's facing as she walks
+    // (the camera sits at yaw = heading + π). Dragging still works; it re-aligns
+    // once she's moving again.
+    if (s.speed > 1.2) {
+      const targetYaw = s.heading + Math.PI;
+      const dy = Math.atan2(Math.sin(targetYaw - inp.yaw), Math.cos(targetYaw - inp.yaw));
+      inp.yaw += dy * (1 - Math.pow(0.05, delta));
+    }
+
+    // pull the camera in close whenever she's inside the (tall) house so the
+    // floors/roof above don't hide her.
     const indoors =
-      s.pos.y < 1.5 && s.pos.x > -5 && s.pos.x < 5 && s.pos.z > -12 && s.pos.z < -2;
-    const dist = indoors ? 7 : 15;
-    const hOff = indoors ? 1.4 : 4;
+      s.pos.x > -16 && s.pos.x < 16 && s.pos.z > -42 && s.pos.z < -2 && s.pos.y < 18;
+    const dist = indoors ? 8 : 15;
+    const hOff = indoors ? 2.5 : 4;
     scratch.offset.set(
       Math.sin(inp.yaw) * Math.cos(inp.pitch) * dist,
       Math.sin(inp.pitch) * dist + hOff,
@@ -474,7 +483,7 @@ export default function Cat() {
   });
 
   return (
-    <group ref={root} position={[0, 0, 6]} scale={1.15}>
+    <group ref={root} position={[0, 0, 20]} scale={1.15}>
       <group ref={rig}>
         <CatModel
           colors={{ fur: "#fdeede", furSoft: "#f7ddc4", belly: "#fffaf3", pink: "#ff9ec2", cheek: "#ffb3c8" }}

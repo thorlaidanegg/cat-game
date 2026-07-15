@@ -32,9 +32,9 @@ export default function GamesPanel() {
     },
     {
       icon: "🏠",
-      title: "Playhouse",
-      how: "Climb, jump the stones, slide down!",
-      action: () => catRuntime.goTo(meadow.x, meadow.z + 4),
+      title: "Home",
+      how: "3 floors: living, kitchen, bedrooms, pool",
+      action: () => catRuntime.goTo(meadow.x, meadow.z - 6),
     },
     {
       icon: "🫧",

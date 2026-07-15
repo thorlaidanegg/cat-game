@@ -30,7 +30,7 @@ export default function CompanionCat() {
   const heart = useRef<Group>(null);
 
   const st = useRef({
-    pos: new Vector3(1.6, 0, 7.5),
+    pos: new Vector3(2.5, 0, 22),
     y: 0,
     heading: 0,
     speed: 0,
@@ -273,7 +273,7 @@ export default function CompanionCat() {
   return (
     <group
       ref={root}
-      position={[1.6, 0, 7.5]}
+      position={[2.5, 0, 22]}
       scale={1.08}
       onClick={(e) => {
         e.stopPropagation();

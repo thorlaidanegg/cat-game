@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { areaCenter, seeded } from "./layout";
 import { Flower, Tree, SakuraTree, Mushroom, Bush } from "./props/Nature";
 import { Bench, Swing, Lantern, Bridge } from "./props/Structures";
-import MegaPlayhouse from "./props/MegaPlayhouse";
+import Home from "./props/Home";
 import Lake from "./props/Lake";
 import Note from "./props/Note";
 import HeartTree from "./props/HeartTree";
@@ -38,8 +38,8 @@ export default function World() {
   const stargaze = areaCenter("stargaze");
   const heart = areaCenter("heart");
 
-  // keep decorations off the whole playhouse + obstacle + slide footprint
-  const inHouse = (p: [number, number, number]) => p[0] > -7 && p[0] < 16 && p[2] > -18 && p[2] < 4;
+  // keep decorations off the house + pool patio footprint
+  const inHouse = (p: [number, number, number]) => p[0] > -18 && p[0] < 18 && p[2] > -43 && p[2] < 17;
 
   // deterministic decoration positions — kept sparse + spaced for a clean look
   const meadowFlowers = useMemo(
@@ -78,9 +78,9 @@ export default function World() {
       {meadowTrees.map((p, i) => (
         <Tree key={`mt${i}`} position={p} scale={0.9 + (i % 3) * 0.2} />
       ))}
-      {/* the big connected playhouse + obstacle course + slides */}
-      <MegaPlayhouse />
-      <Swing position={[meadow.x + 14, 0, meadow.z + 8]} rotation={-0.4} />
+      {/* the big two-storey Home the cats live in */}
+      <Home />
+      <Swing position={[meadow.x + 16, 0, meadow.z + 10]} rotation={-0.4} />
       <Bench position={[meadow.x - 6, 0, meadow.z + 7]} rotation={-0.6} />
       <Butterflies count={12} center={[meadow.x, 0, meadow.z]} spread={26} />
       <HeartBubbles count={10} />
